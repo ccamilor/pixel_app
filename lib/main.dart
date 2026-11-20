@@ -21,7 +21,7 @@ class AppPixelRoot extends ConsumerWidget {
     ref.watch(syncEngineProvider);
 
     return MaterialApp.router(
-      title: 'App Pixel',
+      title: 'Pixel App',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.dark,
       darkTheme: AppTheme.oledDark,

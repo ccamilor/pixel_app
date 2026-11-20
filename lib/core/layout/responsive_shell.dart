@@ -1,7 +1,9 @@
-import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../constants/app_colors.dart';
+import 'live_clock_badge.dart';
 
 /// Destino principal del shell adaptativo.
 class _NavDestination {
@@ -40,6 +42,7 @@ const List<_NavDestination> _destinations = [
 ];
 
 /// Shell adaptativo: NavigationBar en Android (< 600px) y NavigationRail en iPad/Web (>= 600px).
+/// Incluye el logo oficial de Pixel App y un reloj en vivo siempre visible.
 class ResponsiveShell extends StatelessWidget {
   const ResponsiveShell({
     required this.navigationShell,
@@ -61,6 +64,7 @@ class ResponsiveShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final isWideScreen = width >= tabletBreakpoint;
+    final isExtended = width >= 1000;
 
     if (isWideScreen) {
       return Scaffold(
@@ -70,15 +74,46 @@ class ResponsiveShell extends StatelessWidget {
             NavigationRail(
               selectedIndex: navigationShell.currentIndex,
               onDestinationSelected: _onSelectBranch,
-              extended: width >= 1000,
-              labelType:
-                  width >= 1000 ? NavigationRailLabelType.none : NavigationRailLabelType.all,
+              extended: isExtended,
+              labelType: isExtended
+                  ? NavigationRailLabelType.none
+                  : NavigationRailLabelType.all,
               leading: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Icon(
-                  Icons.bolt_rounded,
-                  color: AppColors.accentCyan,
-                  size: 30,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: isExtended
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            'assets/images/pixel_logo.png',
+                            width: 36,
+                            height: 36,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Pixel App',
+                            style: GoogleFonts.pacifico(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.accentCyan,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Image.asset(
+                        'assets/images/pixel_logo.png',
+                        width: 38,
+                        height: 38,
+                      ),
+              ),
+              trailing: Expanded(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: LiveClockBadge(compact: !isExtended),
+                  ),
                 ),
               ),
               destinations: [
@@ -99,7 +134,18 @@ class ResponsiveShell extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: navigationShell,
+      body: Stack(
+        children: [
+          navigationShell,
+          const Positioned(
+            top: 8,
+            right: 12,
+            child: SafeArea(
+              child: LiveClockBadge(compact: true),
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border, width: 1)),

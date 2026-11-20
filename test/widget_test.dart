@@ -59,7 +59,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Dashboard Principal'), findsOneWidget);
+    expect(find.text('Pixel App'), findsWidgets);
     expect(find.byType(NavigationRail), findsOneWidget);
     expect(find.text('Control de Jornada Laboral'), findsOneWidget);
   });

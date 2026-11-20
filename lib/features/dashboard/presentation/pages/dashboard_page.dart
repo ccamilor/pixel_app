@@ -1,14 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_enums.dart';
+import '../../../../core/constants/app_routes.dart';
 import '../../../../core/database/sync_engine.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../finance/data/repositories/finance_repository.dart';
+import '../../../finance/presentation/widgets/add_expense_dialog.dart';
 import '../../../inventory/data/repositories/inventory_repository.dart';
 import '../../../orders/data/repositories/orders_repository.dart';
+import '../../../orders/domain/entities/order_entity.dart';
+import '../../../orders/presentation/widgets/new_sale_dialog.dart';
 import '../../../time_tracking/data/repositories/time_tracking_repository.dart';
 import '../../../time_tracking/domain/entities/work_log_entity.dart';
 import '../widgets/github_activity_heatmap.dart';
@@ -29,15 +35,43 @@ class DashboardPage extends ConsumerWidget {
     final orders = ordersAsync.asData?.value ?? const [];
     final activeOrders =
         orders.where((o) => o.status != OrderStatus.delivered).length;
+    final now = DateTime.now();
+    final todayOrders = orders.where((o) {
+      final created = o.createdAt;
+      return created.year == now.year &&
+          created.month == now.month &&
+          created.day == now.day;
+    }).toList();
+    final todaySalesTotal =
+        todayOrders.fold<double>(0, (sum, o) => sum + o.totalPrice);
     final lowStockMaterials = (materialsAsync.asData?.value ?? const [])
         .where((m) => m.isLowStock)
         .length;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Dashboard Principal',
-          style: TextStyle(fontWeight: FontWeight.w700),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Pixel App',
+              style: GoogleFonts.pacifico(
+                fontSize: 24,
+                fontWeight: FontWeight.w500,
+                color: AppColors.accentCyan,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              '• Dashboard',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
         ),
         actions: [
           pendingSyncAsync.when(
@@ -77,44 +111,79 @@ class DashboardPage extends ConsumerWidget {
           financeAsync.when(
             loading: () => const SizedBox.shrink(),
             error: (_, _) => const SizedBox.shrink(),
-            data: (summary) => Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
+            data: (summary) {
+              final topRowCards = [
                 _QuickStatCard(
-                  label: 'Efectivo Físico',
-                  value: AppFormatters.currency(summary.netCashInDrawer),
+                  label: 'Ventas del Día (${todayOrders.length})',
+                  value: AppFormatters.currency(todaySalesTotal),
                   color: AppColors.success,
-                  icon: Icons.payments_outlined,
-                ),
-                _QuickStatCard(
-                  label: 'Cuentas Digitales',
-                  value: AppFormatters.currency(summary.netDigitalBalance),
-                  color: AppColors.accentCyan,
-                  icon: Icons.smartphone_rounded,
+                  icon: Icons.point_of_sale_rounded,
+                  onTap: () => context.go(AppRoutes.orders),
                 ),
                 _QuickStatCard(
                   label: 'Pedidos Activos',
                   value: '$activeOrders',
                   color: AppColors.primaryBlue,
                   icon: Icons.view_kanban_outlined,
+                  onTap: () => context.go(AppRoutes.orders),
                 ),
                 _QuickStatCard(
                   label: 'Por Cobrar',
                   value: AppFormatters.currency(summary.totalReceivable),
                   color: AppColors.warning,
                   icon: Icons.pending_actions_rounded,
+                  onTap: () => context.go(AppRoutes.orders),
                 ),
-                if (lowStockMaterials > 0)
-                  _QuickStatCard(
-                    label: 'Alertas Stock Bajo',
-                    value: '$lowStockMaterials',
-                    color: AppColors.error,
-                    icon: Icons.warning_amber_rounded,
-                  ),
-              ],
-            ),
+              ];
+
+              final bottomRowCards = [
+                _QuickStatCard(
+                  label: 'Dinero Total',
+                  value: AppFormatters.currency(summary.netTotalBalance),
+                  color: AppColors.accentCyan,
+                  icon: Icons.account_balance_wallet_rounded,
+                  highlighted: true,
+                  onTap: () => context.go(AppRoutes.finance),
+                ),
+                _QuickStatCard(
+                  label: 'Cuenta Digital',
+                  value: AppFormatters.currency(summary.netDigitalBalance),
+                  color: AppColors.accentCyanMuted,
+                  icon: Icons.smartphone_rounded,
+                  onTap: () => context.go(AppRoutes.finance),
+                ),
+                _QuickStatCard(
+                  label: 'Efectivo',
+                  value: AppFormatters.currency(summary.netCashInDrawer),
+                  color: AppColors.success,
+                  icon: Icons.payments_outlined,
+                  onTap: () => context.go(AppRoutes.finance),
+                ),
+              ];
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _StatRowGrid(cards: topRowCards),
+                  const SizedBox(height: 12),
+                  _StatRowGrid(cards: bottomRowCards),
+                  if (lowStockMaterials > 0) ...[
+                    const SizedBox(height: 12),
+                    _QuickStatCard(
+                      label: 'Alertas Stock Bajo',
+                      value: '$lowStockMaterials',
+                      color: AppColors.error,
+                      icon: Icons.warning_amber_rounded,
+                      fullWidth: true,
+                      onTap: () => context.go(AppRoutes.clientsInventory),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
+          const SizedBox(height: 16),
+          _TodaySalesSection(todayOrders: todayOrders),
           const SizedBox(height: 16),
           GithubActivityHeatmap(
             workLogs: allLogsAsync.asData?.value ?? const [],
@@ -180,10 +249,36 @@ class _WorkShiftCard extends ConsumerWidget {
                 style: TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () => repo.openWorkDay(),
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Iniciar Jornada Ahora'),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => repo.openWorkDay(),
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Iniciar Jornada Ahora'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: () => showNewSaleDialog(context, ref),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primaryDeepBlue,
+                      foregroundColor: AppColors.accentCyan,
+                    ),
+                    icon: const Icon(Icons.point_of_sale_rounded),
+                    label: const Text('Nueva Venta'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => showAddExpenseDialog(context, ref),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: BorderSide(
+                        color: AppColors.error.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    icon: const Icon(Icons.remove_circle_outline),
+                    label: const Text('Agregar Gasto'),
+                  ),
+                ],
               ),
             ] else ...[
               Text(
@@ -228,6 +323,22 @@ class _WorkShiftCard extends ConsumerWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    FilledButton.icon(
+                      onPressed: () => showNewSaleDialog(context, ref),
+                      icon: const Icon(Icons.point_of_sale_rounded, size: 18),
+                      label: const Text('Nueva Venta'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => showAddExpenseDialog(context, ref),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: BorderSide(
+                          color: AppColors.error.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      icon: const Icon(Icons.remove_circle_outline, size: 18),
+                      label: const Text('Agregar Gasto'),
+                    ),
                     OutlinedButton.icon(
                       onPressed: () => repo.startBreak(
                         workLogId: todayLog!.id,
@@ -252,11 +363,175 @@ class _WorkShiftCard extends ConsumerWidget {
                     ),
                   ],
                 ),
+              ] else if (!todayLog!.isOpen) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: () => showNewSaleDialog(context, ref),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primaryDeepBlue,
+                        foregroundColor: AppColors.accentCyan,
+                      ),
+                      icon: const Icon(Icons.point_of_sale_rounded, size: 18),
+                      label: const Text('Nueva Venta'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => showAddExpenseDialog(context, ref),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: BorderSide(
+                          color: AppColors.error.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      icon: const Icon(Icons.remove_circle_outline, size: 18),
+                      label: const Text('Agregar Gasto'),
+                    ),
+                  ],
+                ),
               ],
             ],
           ],
         ),
       ),
+    );
+  }
+}
+
+class _TodaySalesSection extends StatelessWidget {
+  const _TodaySalesSection({required this.todayOrders});
+  final List<OrderEntity> todayOrders;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = todayOrders.fold<double>(0, (sum, o) => sum + o.totalPrice);
+    final collected =
+        todayOrders.fold<double>(0, (sum, o) => sum + o.amountPaid);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.receipt_long_rounded,
+                  color: AppColors.accentCyan,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Ventas del Día',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                Text(
+                  'Facturado: ${AppFormatters.currency(total)}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.success,
+                  ),
+                ),
+              ],
+            ),
+            if (todayOrders.isEmpty) ...[
+              const SizedBox(height: 10),
+              const Text(
+                'Aún no has registrado ventas hoy. Pulsa "Nueva Venta" para comenzar.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+            ] else ...[
+              const SizedBox(height: 4),
+              Text(
+                'Recaudado hoy: ${AppFormatters.currency(collected)} • ${todayOrders.length} ${todayOrders.length == 1 ? 'venta' : 'ventas'}',
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+              ),
+              const SizedBox(height: 10),
+              const Divider(),
+              for (final order in todayOrders) ...[
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  onTap: () => context.go(AppRoutes.orders),
+                  title: Text(
+                    order.title,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    '${order.clientName} • ${DateFormat('hh:mm a').format(order.createdAt)} • ${order.status.label}',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        AppFormatters.currency(order.totalPrice),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        order.balanceDue > 0
+                            ? 'Saldo: ${AppFormatters.currency(order.balanceDue)}'
+                            : 'Pagado',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: order.balanceDue > 0
+                              ? AppColors.warning
+                              : AppColors.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatRowGrid extends StatelessWidget {
+  const _StatRowGrid({required this.cards});
+  final List<Widget> cards;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 560) {
+          return Row(
+            children: [
+              for (var i = 0; i < cards.length; i++) ...[
+                Expanded(child: cards[i]),
+                if (i < cards.length - 1) const SizedBox(width: 12),
+              ],
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < cards.length; i++) ...[
+              cards[i],
+              if (i < cards.length - 1) const SizedBox(height: 10),
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -267,49 +542,73 @@ class _QuickStatCard extends StatelessWidget {
     required this.value,
     required this.color,
     required this.icon,
+    this.highlighted = false,
+    this.fullWidth = false,
+    this.onTap,
   });
 
   final String label;
   final String value;
   final Color color;
   final IconData icon;
+  final bool highlighted;
+  final bool fullWidth;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 190,
+      width: fullWidth ? double.infinity : null,
       child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: color, size: 16),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: highlighted ? color : AppColors.border,
+            width: highlighted ? 1.5 : 1,
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          hoverColor: color.withValues(alpha: 0.08),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, color: color, size: 16),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: color,
+                    if (onTap != null)
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: AppColors.textMuted,
+                      ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
