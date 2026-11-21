@@ -32,11 +32,15 @@ abstract interface class RemoteSyncAdapter {
   Future<void> upsert(String table, Map<String, dynamic> payload);
   Future<void> softDelete(String table, String recordId, DateTime deletedAt);
   Future<List<Map<String, dynamic>>> fetchTable(String table);
+  /// Suscribe un canal Realtime (WebSocket) para recibir cambios al instante (< 1s).
+  void subscribeToChanges(void Function() onRemoteChange);
+  Future<void> unsubscribeFromChanges();
 }
 
 class SupabaseRemoteSyncAdapter implements RemoteSyncAdapter {
   SupabaseRemoteSyncAdapter(this._client);
   final SupabaseClient _client;
+  RealtimeChannel? _channel;
 
   @override
   bool get isAuthenticated => _client.auth.currentSession != null;
@@ -68,6 +72,28 @@ class SupabaseRemoteSyncAdapter implements RemoteSyncAdapter {
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
   }
+
+  @override
+  void subscribeToChanges(void Function() onRemoteChange) {
+    if (_channel != null) return;
+    _channel = _client
+        .channel('pixel_app_realtime')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          callback: (_) => onRemoteChange(),
+        )
+        .subscribe();
+  }
+
+  @override
+  Future<void> unsubscribeFromChanges() async {
+    final ch = _channel;
+    _channel = null;
+    if (ch != null) {
+      await _client.removeChannel(ch);
+    }
+  }
 }
 
 /// Motor de sincronización Bidireccional Offline-First:
@@ -86,15 +112,18 @@ class SyncEngine {
 
   StreamSubscription<bool>? _connectivitySub;
   Timer? _periodicTimer;
+  Timer? _realtimeDebounce;
   bool _isSyncing = false;
   final _syncCompletedController = StreamController<DateTime>.broadcast();
 
   /// Emite una marca de tiempo cada vez que finaliza un ciclo Push+Pull exitoso.
   Stream<DateTime> get onSyncCompleted => _syncCompletedController.stream;
 
-  /// Inicia sincronización automática: al abrir, al reconectar y cada 30 segundos en segundo plano.
+  /// Inicia sincronización automática:
+  /// 1) Al abrir la app, 2) Realtime WebSocket (< 1s ante cambios remotos),
+  /// 3) Al reconectar internet, y 4) Respaldo silencioso cada 60s.
   void startAutoSync({
-    Duration pollInterval = const Duration(seconds: 30),
+    Duration pollInterval = const Duration(seconds: 60),
   }) {
     _connectivitySub?.cancel();
     _periodicTimer?.cancel();
@@ -102,22 +131,32 @@ class SyncEngine {
     // 1. Sincronización inicial al abrir la app
     unawaited(syncAll());
 
-    // 2. Sincronización al recuperar conexión a internet
+    // 2. Canal Realtime WebSocket (actualización instantánea al cambiar cualquier tabla en Supabase)
+    remoteAdapter?.subscribeToChanges(() {
+      _realtimeDebounce?.cancel();
+      _realtimeDebounce = Timer(const Duration(milliseconds: 350), () {
+        unawaited(syncAll());
+      });
+    });
+
+    // 3. Sincronización al recuperar conexión a internet
     _connectivitySub = connectivity.onStatusChanged.listen((online) {
       if (online) {
         unawaited(syncAll());
       }
     });
 
-    // 3. Sincronización periódica silenciosa (baja datos de Telegram / otro dispositivo)
+    // 4. Respaldo silencioso cada 60s por si el socket se suspende en segundo plano
     _periodicTimer = Timer.periodic(pollInterval, (_) {
       unawaited(syncAll());
     });
   }
 
   Future<void> dispose() async {
+    _realtimeDebounce?.cancel();
     _periodicTimer?.cancel();
     await _connectivitySub?.cancel();
+    await remoteAdapter?.unsubscribeFromChanges();
     await _syncCompletedController.close();
   }
 

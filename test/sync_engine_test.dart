@@ -49,6 +49,12 @@ class _FakeRemoteSyncAdapter implements RemoteSyncAdapter {
     if (shouldFail) throw Exception('Simulated fetch error');
     return remoteTables[table] ?? const [];
   }
+
+  @override
+  void subscribeToChanges(void Function() onRemoteChange) {}
+
+  @override
+  Future<void> unsubscribeFromChanges() async {}
 }
 
 void main() {
