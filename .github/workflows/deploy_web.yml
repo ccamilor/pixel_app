@@ -3,6 +3,10 @@ name: Deploy Pixel App Web to GitHub Pages
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - "README.md"
+      - "AGENT.md"
+      - "arquitectura_y_plan_de_desarrollo.md"
   workflow_dispatch:
 
 permissions:

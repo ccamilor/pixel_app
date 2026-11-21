@@ -85,20 +85,40 @@ class SyncEngine {
   final RemoteSyncAdapter? remoteAdapter;
 
   StreamSubscription<bool>? _connectivitySub;
+  Timer? _periodicTimer;
   bool _isSyncing = false;
+  final _syncCompletedController = StreamController<DateTime>.broadcast();
 
-  /// Inicia la escucha automática de reconexión para sincronizar en segundo plano.
-  void startAutoSync() {
+  /// Emite una marca de tiempo cada vez que finaliza un ciclo Push+Pull exitoso.
+  Stream<DateTime> get onSyncCompleted => _syncCompletedController.stream;
+
+  /// Inicia sincronización automática: al abrir, al reconectar y cada 30 segundos en segundo plano.
+  void startAutoSync({
+    Duration pollInterval = const Duration(seconds: 30),
+  }) {
     _connectivitySub?.cancel();
+    _periodicTimer?.cancel();
+
+    // 1. Sincronización inicial al abrir la app
+    unawaited(syncAll());
+
+    // 2. Sincronización al recuperar conexión a internet
     _connectivitySub = connectivity.onStatusChanged.listen((online) {
       if (online) {
         unawaited(syncAll());
       }
     });
+
+    // 3. Sincronización periódica silenciosa (baja datos de Telegram / otro dispositivo)
+    _periodicTimer = Timer.periodic(pollInterval, (_) {
+      unawaited(syncAll());
+    });
   }
 
   Future<void> dispose() async {
+    _periodicTimer?.cancel();
     await _connectivitySub?.cancel();
+    await _syncCompletedController.close();
   }
 
   /// Ejecuta PUSH de la cola pendiente seguido de PULL desde Supabase.
@@ -107,7 +127,11 @@ class SyncEngine {
     if (pushResult.status != SyncStatus.idle) {
       return pushResult;
     }
-    return pullFromRemote();
+    final pullResult = await pullFromRemote();
+    if (pullResult.status == SyncStatus.idle && !_syncCompletedController.isClosed) {
+      _syncCompletedController.add(DateTime.now());
+    }
+    return pullResult;
   }
 
   /// Procesa en orden FIFO todas las operaciones encoladas en `sync_queue`.
