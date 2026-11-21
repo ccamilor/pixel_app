@@ -8,6 +8,7 @@ import 'package:app_pixel/features/inventory/data/repositories/inventory_reposit
 import 'package:app_pixel/features/inventory/domain/entities/material_entity.dart';
 import 'package:app_pixel/features/orders/data/repositories/orders_repository.dart';
 import 'package:app_pixel/features/orders/domain/entities/order_entity.dart';
+import 'package:app_pixel/features/reminders/data/repositories/daily_reminders_repository.dart';
 import 'package:app_pixel/features/time_tracking/data/repositories/time_tracking_repository.dart';
 import 'package:app_pixel/features/time_tracking/domain/entities/work_log_entity.dart';
 import 'package:app_pixel/main.dart';
@@ -30,6 +31,7 @@ void main() {
     ordersStreamProvider.overrideWith((_) => Stream.value(const <OrderEntity>[])),
     clientsStreamProvider.overrideWith((_) => Stream.value(const <ClientEntity>[])),
     materialsStreamProvider.overrideWith((_) => Stream.value(const <MaterialEntity>[])),
+    todayRemindersProvider.overrideWith((_) => Stream.value(const <DailyReminderEntity>[])),
     financeSummaryProvider.overrideWith(
       (_) async => const FinanceSummary(
         totalIncome: 0,

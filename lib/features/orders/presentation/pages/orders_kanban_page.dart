@@ -249,6 +249,17 @@ class _OrderCard extends ConsumerWidget {
                     ),
                   ),
                 ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Editar venta / subdivisión',
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    size: 17,
+                    color: AppColors.accentCyan,
+                  ),
+                  onPressed: () =>
+                      showNewSaleDialog(context, ref, order: order),
+                ),
                 PopupMenuButton<OrderStatus>(
                   tooltip: 'Mover a otra columna',
                   icon: const Icon(Icons.more_vert, size: 18),
@@ -267,6 +278,15 @@ class _OrderCard extends ConsumerWidget {
                 ),
               ],
             ),
+            Text(
+              '${order.category}${order.subcategory.isNotEmpty ? ' • ${order.subcategory}' : ''}',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.accentCyanMuted,
+              ),
+            ),
+            const SizedBox(height: 2),
             Text(
               '${order.clientName} • Entrega: $deadlineStr',
               style: TextStyle(

@@ -12,35 +12,79 @@ import '../../../finance/data/repositories/finance_repository.dart';
 import '../../../inventory/data/repositories/inventory_repository.dart';
 import '../../../inventory/domain/entities/material_entity.dart';
 import '../../data/repositories/orders_repository.dart';
+import '../../domain/entities/order_entity.dart';
 
-/// Diálogo reutilizable para registrar una Nueva Venta / Pedido desde Dashboard o Kanban.
-Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
+const String _customSaleOption = '__custom__';
+
+/// Diálogo reutilizable para crear o EDITAR una Venta / Pedido con categorías y subdivisiones.
+Future<void> showNewSaleDialog(
+  BuildContext context,
+  WidgetRef ref, {
+  OrderEntity? order,
+}) async {
+  final isEditing = order != null;
   final clients = ref.read(clientsStreamProvider).asData?.value ?? const [];
   final materials = ref.read(materialsStreamProvider).asData?.value ?? const [];
 
-  final titleCtrl = TextEditingController();
-  final manualPriceCtrl = TextEditingController();
+  final titleCtrl = TextEditingController(text: order?.title ?? '');
+  final manualPriceCtrl = TextEditingController(
+    text: isEditing ? order.totalPrice.toStringAsFixed(0) : '',
+  );
   final initialPayCtrl = TextEditingController(text: '0');
-  final designFeeCtrl = TextEditingController(text: '0');
-  final notesCtrl = TextEditingController();
-  final filePathCtrl = TextEditingController();
+  final designFeeCtrl = TextEditingController(
+    text: isEditing ? order.designFee.toStringAsFixed(0) : '0',
+  );
+  final notesCtrl = TextEditingController(text: order?.technicalNotes ?? '');
+  final filePathCtrl = TextEditingController(text: order?.sourceFilePath ?? '');
   final widthCtrl = TextEditingController(text: '50');
   final heightCtrl = TextEditingController(text: '30');
   final qtyCtrl = TextEditingController(text: '1');
   final quickClientNameCtrl = TextEditingController();
   final quickClientPhoneCtrl = TextEditingController();
 
-  ClientEntity? selectedClient = clients.isNotEmpty ? clients.first : null;
-  var createWalkInClient = clients.isEmpty;
+  ClientEntity? selectedClient;
+  if (isEditing && clients.isNotEmpty) {
+    selectedClient = clients.firstWhere(
+      (c) => c.id == order.clientId,
+      orElse: () => clients.first,
+    );
+  } else if (clients.isNotEmpty) {
+    selectedClient = clients.first;
+  }
+
+  var createWalkInClient = !isEditing && clients.isEmpty;
   MaterialEntity? selectedMaterial =
       materials.isNotEmpty ? materials.first : null;
-  var pricingMode = PricingMode.manual;
+  var pricingMode = isEditing ? PricingMode.manual : PricingMode.manual;
   var finishingType = FinishingType.none;
-  var priority = OrderPriority.medium;
+  var priority = order?.priority ?? OrderPriority.medium;
   var payMethod = PaymentMethod.cash;
   var deductStock = false;
   var paidInFull = true;
-  var deadline = DateTime.now().add(const Duration(days: 1));
+  var deadline = order?.deadline ?? DateTime.now().add(const Duration(days: 1));
+
+  // Categoría y subdivisión de la venta
+  final initialCat = order?.category ?? defaultSaleCategories.keys.first;
+  final isPresetCat = defaultSaleCategories.containsKey(initialCat);
+  var selectedCatOption = isPresetCat ? initialCat : _customSaleOption;
+  final customCatCtrl = TextEditingController(
+    text: isPresetCat ? '' : initialCat,
+  );
+
+  final presetSubs =
+      isPresetCat ? defaultSaleCategories[initialCat]! : const <String>[];
+  final initialSub =
+      order?.subcategory ?? (presetSubs.isNotEmpty ? presetSubs.first : '');
+  final isPresetSub = isPresetCat && presetSubs.contains(initialSub);
+  var selectedSubOption = isPresetSub
+      ? initialSub
+      : (initialSub.isNotEmpty
+          ? _customSaleOption
+          : (presetSubs.isNotEmpty ? presetSubs.first : _customSaleOption));
+  final customSubCtrl = TextEditingController(
+    text: isPresetSub ? '' : initialSub,
+  );
+
   final formKey = GlobalKey<FormState>();
 
   await showDialog<void>(
@@ -63,13 +107,20 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
         );
         final autoTotal = calc.totalPrice + designFee;
 
+        final currentSubs = selectedCatOption == _customSaleOption
+            ? const <String>[]
+            : (defaultSaleCategories[selectedCatOption] ?? const <String>[]);
+
         return AlertDialog(
           backgroundColor: AppColors.surface,
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.point_of_sale_rounded, color: AppColors.accentCyan),
-              SizedBox(width: 8),
-              Text('Nueva Venta / Pedido'),
+              Icon(
+                isEditing ? Icons.edit_rounded : Icons.point_of_sale_rounded,
+                color: AppColors.accentCyan,
+              ),
+              const SizedBox(width: 8),
+              Text(isEditing ? 'Editar Venta / Pedido' : 'Nueva Venta / Pedido'),
             ],
           ),
           content: SizedBox(
@@ -106,13 +157,15 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
                                     },
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          FilterChip(
-                            selected: createWalkInClient,
-                            label: const Text('Nuevo rápido'),
-                            onSelected: (v) =>
-                                setDialogState(() => createWalkInClient = v),
-                          ),
+                          if (!isEditing) ...[
+                            const SizedBox(width: 8),
+                            FilterChip(
+                              selected: createWalkInClient,
+                              label: const Text('Nuevo rápido'),
+                              onSelected: (v) =>
+                                  setDialogState(() => createWalkInClient = v),
+                            ),
+                          ],
                         ],
                       ),
                     if (createWalkInClient) ...[
@@ -151,6 +204,99 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
                           : null,
                     ),
                     const SizedBox(height: 12),
+                    // Categoría y Subdivisión de la Venta
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: selectedCatOption,
+                            decoration: const InputDecoration(
+                              labelText: 'Categoría Venta',
+                            ),
+                            items: [
+                              ...defaultSaleCategories.keys.map(
+                                (c) => DropdownMenuItem(value: c, child: Text(c)),
+                              ),
+                              const DropdownMenuItem(
+                                value: _customSaleOption,
+                                child: Text('+ Personalizada...'),
+                              ),
+                            ],
+                            onChanged: (v) {
+                              if (v == null) return;
+                              setDialogState(() {
+                                selectedCatOption = v;
+                                if (v == _customSaleOption) {
+                                  selectedSubOption = _customSaleOption;
+                                } else {
+                                  final subs =
+                                      defaultSaleCategories[v] ?? const [];
+                                  selectedSubOption = subs.isNotEmpty
+                                      ? subs.first
+                                      : _customSaleOption;
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        if (currentSubs.isNotEmpty)
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              initialValue:
+                                  currentSubs.contains(selectedSubOption) ||
+                                          selectedSubOption == _customSaleOption
+                                      ? selectedSubOption
+                                      : currentSubs.first,
+                              decoration: const InputDecoration(
+                                labelText: 'Subdivisión',
+                              ),
+                              items: [
+                                ...currentSubs.map(
+                                  (s) => DropdownMenuItem(
+                                    value: s,
+                                    child: Text(s),
+                                  ),
+                                ),
+                                const DropdownMenuItem(
+                                  value: _customSaleOption,
+                                  child: Text('+ Nueva...'),
+                                ),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setDialogState(() => selectedSubOption = v);
+                                }
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (selectedCatOption == _customSaleOption) ...[
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: customCatCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Categoría personalizada *',
+                        ),
+                        validator: (v) =>
+                            selectedCatOption == _customSaleOption &&
+                                    (v == null || v.trim().isEmpty)
+                                ? 'Escribe la categoría'
+                                : null,
+                      ),
+                    ],
+                    if (selectedSubOption == _customSaleOption ||
+                        currentSubs.isEmpty) ...[
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: customSubCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Subdivisión personalizada (ej. Tanque MT-09)',
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -178,7 +324,7 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
                             onPressed: () async {
                               final picked = await showDatePicker(
                                 context: ctx,
-                                firstDate: DateTime.now(),
+                                firstDate: DateTime(2024),
                                 lastDate: DateTime.now().add(
                                   const Duration(days: 365),
                                 ),
@@ -197,23 +343,24 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    SegmentedButton<PricingMode>(
-                      segments: const [
-                        ButtonSegment(
-                          value: PricingMode.manual,
-                          label: Text('Precio Manual'),
-                        ),
-                        ButtonSegment(
-                          value: PricingMode.auto,
-                          label: Text('Calculadora m²'),
-                        ),
-                      ],
-                      selected: {pricingMode},
-                      onSelectionChanged: (s) =>
-                          setDialogState(() => pricingMode = s.first),
-                    ),
+                    if (!isEditing)
+                      SegmentedButton<PricingMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: PricingMode.manual,
+                            label: Text('Precio Manual'),
+                          ),
+                          ButtonSegment(
+                            value: PricingMode.auto,
+                            label: Text('Calculadora m²'),
+                          ),
+                        ],
+                        selected: {pricingMode},
+                        onSelectionChanged: (s) =>
+                            setDialogState(() => pricingMode = s.first),
+                      ),
                     const SizedBox(height: 12),
-                    if (pricingMode == PricingMode.manual)
+                    if (pricingMode == PricingMode.manual || isEditing)
                       TextFormField(
                         controller: manualPriceCtrl,
                         keyboardType: TextInputType.number,
@@ -223,7 +370,9 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
                         ),
                         onChanged: (_) => setDialogState(() {}),
                         validator: (v) {
-                          if (pricingMode != PricingMode.manual) return null;
+                          if (!isEditing && pricingMode != PricingMode.manual) {
+                            return null;
+                          }
                           final parsed = double.tryParse(v ?? '');
                           if (parsed == null || parsed <= 0) {
                             return 'Ingresa el valor de la venta';
@@ -350,53 +499,57 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 12),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: paidInFull,
-                      activeThumbColor: AppColors.accentCyan,
-                      title: const Text(
-                        'Pagado en su totalidad ahora (entrada inmediata a caja)',
-                        style: TextStyle(fontSize: 13),
+                    if (!isEditing) ...[
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: paidInFull,
+                        activeThumbColor: AppColors.accentCyan,
+                        title: const Text(
+                          'Pagado en su totalidad ahora (entrada inmediata a caja)',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        onChanged: (v) => setDialogState(() => paidInFull = v),
                       ),
-                      onChanged: (v) => setDialogState(() => paidInFull = v),
-                    ),
-                    Row(
-                      children: [
-                        if (!paidInFull) ...[
-                          Expanded(
-                            child: TextFormField(
-                              controller: initialPayCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Abono inicial',
-                                prefixText: r'$ ',
+                      Row(
+                        children: [
+                          if (!paidInFull) ...[
+                            Expanded(
+                              child: TextFormField(
+                                controller: initialPayCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Abono inicial',
+                                  prefixText: r'$ ',
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                        ],
-                        Expanded(
-                          child: DropdownButtonFormField<PaymentMethod>(
-                            initialValue: payMethod,
-                            decoration: const InputDecoration(
-                              labelText: 'Medio de pago',
+                            const SizedBox(width: 10),
+                          ],
+                          Expanded(
+                            child: DropdownButtonFormField<PaymentMethod>(
+                              initialValue: payMethod,
+                              decoration: const InputDecoration(
+                                labelText: 'Medio de pago',
+                              ),
+                              items: PaymentMethod.values
+                                  .map(
+                                    (m) => DropdownMenuItem(
+                                      value: m,
+                                      child: Text(m.label),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setDialogState(() => payMethod = v);
+                                }
+                              },
                             ),
-                            items: PaymentMethod.values
-                                .map(
-                                  (m) => DropdownMenuItem(
-                                    value: m,
-                                    child: Text(m.label),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) {
-                              if (v != null) setDialogState(() => payMethod = v);
-                            },
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: filePathCtrl,
@@ -418,6 +571,18 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
             ),
           ),
           actions: [
+            if (isEditing)
+              TextButton(
+                onPressed: () async {
+                  await ref
+                      .read(ordersRepositoryProvider)
+                      .deleteOrder(order.id);
+                  ref.invalidate(financeSummaryProvider);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                child: const Text('Eliminar'),
+              ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancelar'),
@@ -425,6 +590,33 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
             FilledButton.icon(
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
+
+                final finalCat = selectedCatOption == _customSaleOption
+                    ? customCatCtrl.text.trim()
+                    : selectedCatOption;
+                final finalSub = (selectedSubOption == _customSaleOption ||
+                        currentSubs.isEmpty)
+                    ? customSubCtrl.text.trim()
+                    : selectedSubOption;
+
+                if (isEditing) {
+                  await ref.read(ordersRepositoryProvider).updateOrderDetails(
+                        orderId: order.id,
+                        clientId: selectedClient?.id ?? order.clientId,
+                        title: titleCtrl.text,
+                        category: finalCat,
+                        subcategory: finalSub,
+                        deadline: deadline,
+                        priority: priority,
+                        totalPrice: double.parse(manualPriceCtrl.text),
+                        designFee: designFee,
+                        technicalNotes: notesCtrl.text,
+                        sourceFilePath: filePathCtrl.text,
+                      );
+                  ref.invalidate(financeSummaryProvider);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  return;
+                }
 
                 String clientId;
                 if (createWalkInClient || selectedClient == null) {
@@ -452,6 +644,8 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
                 await ref.read(ordersRepositoryProvider).createOrder(
                       clientId: clientId,
                       title: titleCtrl.text,
+                      category: finalCat,
+                      subcategory: finalSub,
                       deadline: deadline,
                       priority: priority,
                       pricingMode: pricingMode,
@@ -485,7 +679,7 @@ Future<void> showNewSaleDialog(BuildContext context, WidgetRef ref) async {
                 if (ctx.mounted) Navigator.pop(ctx);
               },
               icon: const Icon(Icons.check_rounded),
-              label: const Text('Registrar Venta'),
+              label: Text(isEditing ? 'Guardar Cambios' : 'Registrar Venta'),
             ),
           ],
         );

@@ -62,9 +62,14 @@ class FinancePage extends ConsumerWidget {
                   for (final expense in expenses) ...[
                     _ExpenseTile(
                       expense: expense,
-                      onDelete: () => ref
-                          .read(financeRepositoryProvider)
-                          .deleteExpense(expense.id),
+                      onEdit: () =>
+                          showAddExpenseDialog(context, ref, expense: expense),
+                      onDelete: () async {
+                        await ref
+                            .read(financeRepositoryProvider)
+                            .deleteExpense(expense.id);
+                        ref.invalidate(financeSummaryProvider);
+                      },
                     ),
                     const SizedBox(height: 8),
                   ],
@@ -206,9 +211,14 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _ExpenseTile extends StatelessWidget {
-  const _ExpenseTile({required this.expense, required this.onDelete});
+  const _ExpenseTile({
+    required this.expense,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final ExpenseEntity expense;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -216,6 +226,7 @@ class _ExpenseTile extends StatelessWidget {
     final dateLabel = DateFormat('dd/MM HH:mm').format(expense.date);
     return Card(
       child: ListTile(
+        onTap: onEdit,
         leading: CircleAvatar(
           backgroundColor: expense.scope == ExpenseScope.business
               ? AppColors.primaryDeepBlue
@@ -247,6 +258,13 @@ class _ExpenseTile extends StatelessWidget {
               ),
             ),
             IconButton(
+              tooltip: 'Editar gasto',
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              color: AppColors.accentCyan,
+              onPressed: onEdit,
+            ),
+            IconButton(
+              tooltip: 'Eliminar gasto',
               icon: const Icon(Icons.delete_outline, size: 18),
               color: AppColors.textMuted,
               onPressed: onDelete,

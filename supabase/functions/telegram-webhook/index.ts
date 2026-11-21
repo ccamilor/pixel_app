@@ -437,6 +437,16 @@ Deno.serve(async (req) => {
       await sendTelegramReply(chatId, await buildLowStockText(), MAIN_MENU_BUTTONS);
     } else if (data === "info:help") {
       await sendTelegramReply(chatId, HELP_TEXT, MAIN_MENU_BUTTONS);
+    } else if (data.startsWith("rem:done:")) {
+      const remId = data.slice("rem:done:".length);
+      const nowIso = new Date().toISOString();
+      await supabase
+        .from("daily_reminders")
+        .update({ is_done: true, updated_at: nowIso })
+        .eq("id", remId);
+      await sendTelegramReply(chatId, "✅ *Recordatorio marcado como HECHO* y sincronizado con Pixel App.");
+    } else if (data.startsWith("rem:keep:")) {
+      await sendTelegramReply(chatId, "⏳ *Anotado:* sigue pendiente para hoy.");
     }
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 });

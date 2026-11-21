@@ -11,6 +11,14 @@ import '../../../finance/data/repositories/finance_repository.dart';
 import '../../../inventory/data/repositories/inventory_repository.dart';
 import '../../domain/entities/order_entity.dart';
 
+/// Categorías y subdivisiones sugeridas para Ventas / Pedidos (personalizables).
+const Map<String, List<String>> defaultSaleCategories = {
+  'Calcomanías Moto': ['Kit Tanque', 'Rines', 'Reflectivos', 'Personalizado'],
+  'Impresión Digital': ['Vinilo Adhesivo', 'Banner / Lona', 'Microperforado', 'Laminado'],
+  'Publicidad': ['Tarjetas', 'Volantes', 'Avisos / Pendones', 'Diseño Gráfico'],
+  'Accesorios Moto': ['Protectores', 'Tapas / Emblemas', 'Polarizado', 'Otros'],
+};
+
 /// Repositorio Offline-First de Pedidos, Ítems, Abonos y Timer/Pomodoro.
 class OrdersRepository {
   OrdersRepository(this._db, this._syncEngine, this._inventoryRepository);
@@ -54,6 +62,8 @@ class OrdersRepository {
   Future<String> createOrder({
     required String clientId,
     required String title,
+    String category = 'Impresión Digital',
+    String subcategory = '',
     required DateTime deadline,
     OrderPriority priority = OrderPriority.medium,
     PricingMode pricingMode = PricingMode.manual,
@@ -75,6 +85,8 @@ class OrdersRepository {
         id: orderId,
         clientId: clientId,
         title: title.trim(),
+        category: Value(category.trim().isEmpty ? 'Impresión Digital' : category.trim()),
+        subcategory: Value(subcategory.trim()),
         status: const Value('pending'),
         technicalNotes: Value(technicalNotes.trim()),
         sourceFilePath: Value(
@@ -100,6 +112,8 @@ class OrdersRepository {
         'id': orderId,
         'client_id': clientId,
         'title': title.trim(),
+        'category': category.trim().isEmpty ? 'Impresión Digital' : category.trim(),
+        'subcategory': subcategory.trim(),
         'status': 'pending',
         'design_approved': false,
         'print_stage': 'none',
@@ -179,6 +193,80 @@ class OrdersRepository {
 
     _syncEngine.syncPendingChanges();
     return orderId;
+  }
+
+  /// Actualiza todos los datos editables de una venta/pedido existente.
+  Future<void> updateOrderDetails({
+    required String orderId,
+    required String clientId,
+    required String title,
+    required String category,
+    required String subcategory,
+    required DateTime deadline,
+    required OrderPriority priority,
+    required double totalPrice,
+    required double designFee,
+    required String technicalNotes,
+    String? sourceFilePath,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await (_db.update(_db.orders)..where((t) => t.id.equals(orderId))).write(
+      OrdersCompanion(
+        clientId: Value(clientId),
+        title: Value(title.trim()),
+        category: Value(category.trim().isEmpty ? 'Impresión Digital' : category.trim()),
+        subcategory: Value(subcategory.trim()),
+        deadline: Value(deadline.toUtc()),
+        priority: Value(_priorityToDb(priority)),
+        totalPrice: Value(totalPrice),
+        designFee: Value(designFee),
+        technicalNotes: Value(technicalNotes.trim()),
+        sourceFilePath: Value(
+          sourceFilePath?.trim().isEmpty ?? true ? null : sourceFilePath?.trim(),
+        ),
+        updatedAt: Value(now),
+      ),
+    );
+
+    final updated =
+        await (_db.select(_db.orders)..where((t) => t.id.equals(orderId)))
+            .getSingleOrNull();
+    if (updated != null) {
+      await _enqueueOrderUpsert(updated);
+    }
+    _syncEngine.syncPendingChanges();
+  }
+
+  /// Soft-delete de un pedido/venta (también oculta sus pagos asociados del arqueo).
+  Future<void> deleteOrder(String orderId) async {
+    final now = DateTime.now().toUtc();
+    await (_db.update(_db.orders)..where((t) => t.id.equals(orderId))).write(
+      OrdersCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
+
+    final payments = await (_db.select(_db.orderPayments)
+          ..where((t) => t.orderId.equals(orderId) & t.deletedAt.isNull()))
+        .get();
+    for (final p in payments) {
+      await (_db.update(_db.orderPayments)..where((t) => t.id.equals(p.id)))
+          .write(
+            OrderPaymentsCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+          );
+      await _db.enqueueSync(
+        entityTable: 'order_payments',
+        recordId: p.id,
+        operation: 'delete',
+        payload: {'deleted_at': now.toIso8601String()},
+      );
+    }
+
+    await _db.enqueueSync(
+      entityTable: 'orders',
+      recordId: orderId,
+      operation: 'delete',
+      payload: {'deleted_at': now.toIso8601String()},
+    );
+    _syncEngine.syncPendingChanges();
   }
 
   /// Mueve una tarjeta entre columnas del Kanban o actualiza sus subestados.
@@ -350,6 +438,8 @@ class OrdersRepository {
         'id': row.id,
         'client_id': row.clientId,
         'title': row.title,
+        'category': row.category,
+        'subcategory': row.subcategory,
         'status': row.status,
         'design_approved': row.designApproved,
         'print_stage': row.printStage,
@@ -383,6 +473,8 @@ class OrdersRepository {
       clientName: client?.name ?? 'Cliente',
       clientPhone: client?.phone ?? '',
       title: row.title,
+      category: row.category,
+      subcategory: row.subcategory,
       status: _statusFromDb(row.status),
       designApproved: row.designApproved,
       printStage: _printStageFromDb(row.printStage),

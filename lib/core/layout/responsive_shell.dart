@@ -134,17 +134,14 @@ class ResponsiveShell extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          navigationShell,
-          const Positioned(
-            top: 8,
-            right: 12,
-            child: SafeArea(
-              child: LiveClockBadge(compact: true),
-            ),
-          ),
-        ],
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const LiveClockBadge(mobileBar: true),
+            Expanded(child: navigationShell),
+          ],
+        ),
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(

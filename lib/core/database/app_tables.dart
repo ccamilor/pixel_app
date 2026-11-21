@@ -38,6 +38,8 @@ class Orders extends Table {
   TextColumn get id => text()();
   TextColumn get clientId => text().references(Clients, #id)();
   TextColumn get title => text()();
+  TextColumn get category => text().withDefault(const Constant('Impresión Digital'))();
+  TextColumn get subcategory => text().withDefault(const Constant(''))();
   TextColumn get status => text().withDefault(const Constant('pending'))();
   BoolColumn get designApproved => boolean().withDefault(const Constant(false))();
   TextColumn get printStage => text().withDefault(const Constant('none'))();
@@ -141,6 +143,20 @@ class WorkBreaks extends Table {
   DateTimeColumn get startTime => dateTime()();
   DateTimeColumn get endTime => dateTime().nullable()();
   TextColumn get notes => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Tabla de Recordatorios Personales (solo del día).
+class DailyReminders extends Table {
+  TextColumn get id => text()();
+  TextColumn get dateKey => text()(); // Formato YYYY-MM-DD
+  TextColumn get title => text()();
+  BoolColumn get isDone => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get deletedAt => dateTime().nullable()();
 

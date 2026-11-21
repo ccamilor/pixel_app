@@ -54,6 +54,14 @@ class DashboardPage extends ConsumerWidget {
       appBar: AppBar(
         title: Row(
           children: [
+            if (MediaQuery.sizeOf(context).width < 600) ...[
+              Image.asset(
+                'assets/images/pixel_logo.png',
+                width: 30,
+                height: 30,
+              ),
+              const SizedBox(width: 8),
+            ],
             Flexible(
               child: Text(
                 'Pixel App',
@@ -433,12 +441,12 @@ class _WorkShiftCard extends ConsumerWidget {
   }
 }
 
-class _TodaySalesSection extends StatelessWidget {
+class _TodaySalesSection extends ConsumerWidget {
   const _TodaySalesSection({required this.todayOrders});
   final List<OrderEntity> todayOrders;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final total = todayOrders.fold<double>(0, (sum, o) => sum + o.totalPrice);
     final collected =
         todayOrders.fold<double>(0, (sum, o) => sum + o.amountPaid);
@@ -491,13 +499,13 @@ class _TodaySalesSection extends StatelessWidget {
                 ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  onTap: () => context.go(AppRoutes.orders),
+                  onTap: () => showNewSaleDialog(context, ref, order: order),
                   title: Text(
                     order.title,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
-                    '${order.clientName} • ${DateFormat('hh:mm a').format(order.createdAt)} • ${order.status.label}',
+                    '${order.category}${order.subcategory.isNotEmpty ? ' • ${order.subcategory}' : ''} • ${order.clientName} • ${DateFormat('hh:mm a').format(order.createdAt)}',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,

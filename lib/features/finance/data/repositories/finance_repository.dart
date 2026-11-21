@@ -127,19 +127,43 @@ class FinanceRepository {
     DateTime? date,
     String source = 'app',
   }) async {
+    await saveExpense(
+      amount: amount,
+      scope: scope,
+      paymentMethod: paymentMethod,
+      category: category,
+      subcategory: subcategory,
+      description: description,
+      date: date,
+      source: source,
+    );
+  }
+
+  /// Crea o actualiza un gasto (permitiendo modificar monto, categoría, subdivisión, medio o ámbito).
+  Future<void> saveExpense({
+    String? id,
+    required double amount,
+    required ExpenseScope scope,
+    required PaymentMethod paymentMethod,
+    required String category,
+    required String subcategory,
+    required String description,
+    DateTime? date,
+    String source = 'app',
+  }) async {
     final now = DateTime.now().toUtc();
     final expenseDate = (date ?? now).toUtc();
-    final recordId = _uuid.v4();
+    final recordId = id ?? _uuid.v4();
     final scopeDb = scope == ExpenseScope.personal ? 'personal' : 'business';
     final methodDb = paymentMethodToDb(paymentMethod);
 
-    await _db.into(_db.expenses).insert(
-      ExpensesCompanion.insert(
-        id: recordId,
-        amount: amount,
+    await _db.into(_db.expenses).insertOnConflictUpdate(
+      ExpensesCompanion(
+        id: Value(recordId),
+        amount: Value(amount),
         scope: Value(scopeDb),
         paymentMethod: Value(methodDb),
-        category: category.trim(),
+        category: Value(category.trim()),
         subcategory: Value(subcategory.trim()),
         description: Value(description.trim()),
         date: Value(expenseDate),

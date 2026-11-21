@@ -18,6 +18,7 @@ part 'app_database.g.dart';
     Expenses,
     WorkLogs,
     WorkBreaks,
+    DailyReminders,
     SyncQueue,
   ],
 )
@@ -26,7 +27,21 @@ class AppDatabase extends _$AppDatabase {
     : super(executor ?? _openDefaultConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(orders, orders.category);
+        await m.addColumn(orders, orders.subcategory);
+      }
+      if (from < 3) {
+        await m.createTable(dailyReminders);
+      }
+    },
+  );
 
   static QueryExecutor _openDefaultConnection() {
     return driftDatabase(

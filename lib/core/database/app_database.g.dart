@@ -1209,6 +1209,30 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, Order> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Impresión Digital'),
+  );
+  static const VerificationMeta _subcategoryMeta = const VerificationMeta(
+    'subcategory',
+  );
+  @override
+  late final GeneratedColumn<String> subcategory = GeneratedColumn<String>(
+    'subcategory',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
   late final GeneratedColumn<String> status = GeneratedColumn<String>(
@@ -1438,6 +1462,8 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, Order> {
     id,
     clientId,
     title,
+    category,
+    subcategory,
     status,
     designApproved,
     printStage,
@@ -1490,6 +1516,21 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, Order> {
       );
     } else if (isInserting) {
       context.missing(_titleMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('subcategory')) {
+      context.handle(
+        _subcategoryMeta,
+        subcategory.isAcceptableOrUnknown(
+          data['subcategory']!,
+          _subcategoryMeta,
+        ),
+      );
     }
     if (data.containsKey('status')) {
       context.handle(
@@ -1652,6 +1693,14 @@ class $OrdersTable extends Orders with TableInfo<$OrdersTable, Order> {
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
+      subcategory: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subcategory'],
+      )!,
       status: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}status'],
@@ -1741,6 +1790,8 @@ class Order extends DataClass implements Insertable<Order> {
   final String id;
   final String clientId;
   final String title;
+  final String category;
+  final String subcategory;
   final String status;
   final bool designApproved;
   final String printStage;
@@ -1764,6 +1815,8 @@ class Order extends DataClass implements Insertable<Order> {
     required this.id,
     required this.clientId,
     required this.title,
+    required this.category,
+    required this.subcategory,
     required this.status,
     required this.designApproved,
     required this.printStage,
@@ -1790,6 +1843,8 @@ class Order extends DataClass implements Insertable<Order> {
     map['id'] = Variable<String>(id);
     map['client_id'] = Variable<String>(clientId);
     map['title'] = Variable<String>(title);
+    map['category'] = Variable<String>(category);
+    map['subcategory'] = Variable<String>(subcategory);
     map['status'] = Variable<String>(status);
     map['design_approved'] = Variable<bool>(designApproved);
     map['print_stage'] = Variable<String>(printStage);
@@ -1825,6 +1880,8 @@ class Order extends DataClass implements Insertable<Order> {
       id: Value(id),
       clientId: Value(clientId),
       title: Value(title),
+      category: Value(category),
+      subcategory: Value(subcategory),
       status: Value(status),
       designApproved: Value(designApproved),
       printStage: Value(printStage),
@@ -1862,6 +1919,8 @@ class Order extends DataClass implements Insertable<Order> {
       id: serializer.fromJson<String>(json['id']),
       clientId: serializer.fromJson<String>(json['clientId']),
       title: serializer.fromJson<String>(json['title']),
+      category: serializer.fromJson<String>(json['category']),
+      subcategory: serializer.fromJson<String>(json['subcategory']),
       status: serializer.fromJson<String>(json['status']),
       designApproved: serializer.fromJson<bool>(json['designApproved']),
       printStage: serializer.fromJson<String>(json['printStage']),
@@ -1898,6 +1957,8 @@ class Order extends DataClass implements Insertable<Order> {
       'id': serializer.toJson<String>(id),
       'clientId': serializer.toJson<String>(clientId),
       'title': serializer.toJson<String>(title),
+      'category': serializer.toJson<String>(category),
+      'subcategory': serializer.toJson<String>(subcategory),
       'status': serializer.toJson<String>(status),
       'designApproved': serializer.toJson<bool>(designApproved),
       'printStage': serializer.toJson<String>(printStage),
@@ -1928,6 +1989,8 @@ class Order extends DataClass implements Insertable<Order> {
     String? id,
     String? clientId,
     String? title,
+    String? category,
+    String? subcategory,
     String? status,
     bool? designApproved,
     String? printStage,
@@ -1951,6 +2014,8 @@ class Order extends DataClass implements Insertable<Order> {
     id: id ?? this.id,
     clientId: clientId ?? this.clientId,
     title: title ?? this.title,
+    category: category ?? this.category,
+    subcategory: subcategory ?? this.subcategory,
     status: status ?? this.status,
     designApproved: designApproved ?? this.designApproved,
     printStage: printStage ?? this.printStage,
@@ -1981,6 +2046,10 @@ class Order extends DataClass implements Insertable<Order> {
       id: data.id.present ? data.id.value : this.id,
       clientId: data.clientId.present ? data.clientId.value : this.clientId,
       title: data.title.present ? data.title.value : this.title,
+      category: data.category.present ? data.category.value : this.category,
+      subcategory: data.subcategory.present
+          ? data.subcategory.value
+          : this.subcategory,
       status: data.status.present ? data.status.value : this.status,
       designApproved: data.designApproved.present
           ? data.designApproved.value
@@ -2031,6 +2100,8 @@ class Order extends DataClass implements Insertable<Order> {
           ..write('id: $id, ')
           ..write('clientId: $clientId, ')
           ..write('title: $title, ')
+          ..write('category: $category, ')
+          ..write('subcategory: $subcategory, ')
           ..write('status: $status, ')
           ..write('designApproved: $designApproved, ')
           ..write('printStage: $printStage, ')
@@ -2059,6 +2130,8 @@ class Order extends DataClass implements Insertable<Order> {
     id,
     clientId,
     title,
+    category,
+    subcategory,
     status,
     designApproved,
     printStage,
@@ -2086,6 +2159,8 @@ class Order extends DataClass implements Insertable<Order> {
           other.id == this.id &&
           other.clientId == this.clientId &&
           other.title == this.title &&
+          other.category == this.category &&
+          other.subcategory == this.subcategory &&
           other.status == this.status &&
           other.designApproved == this.designApproved &&
           other.printStage == this.printStage &&
@@ -2111,6 +2186,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
   final Value<String> id;
   final Value<String> clientId;
   final Value<String> title;
+  final Value<String> category;
+  final Value<String> subcategory;
   final Value<String> status;
   final Value<bool> designApproved;
   final Value<String> printStage;
@@ -2135,6 +2212,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
     this.id = const Value.absent(),
     this.clientId = const Value.absent(),
     this.title = const Value.absent(),
+    this.category = const Value.absent(),
+    this.subcategory = const Value.absent(),
     this.status = const Value.absent(),
     this.designApproved = const Value.absent(),
     this.printStage = const Value.absent(),
@@ -2160,6 +2239,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
     required String id,
     required String clientId,
     required String title,
+    this.category = const Value.absent(),
+    this.subcategory = const Value.absent(),
     this.status = const Value.absent(),
     this.designApproved = const Value.absent(),
     this.printStage = const Value.absent(),
@@ -2188,6 +2269,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
     Expression<String>? id,
     Expression<String>? clientId,
     Expression<String>? title,
+    Expression<String>? category,
+    Expression<String>? subcategory,
     Expression<String>? status,
     Expression<bool>? designApproved,
     Expression<String>? printStage,
@@ -2213,6 +2296,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
       if (id != null) 'id': id,
       if (clientId != null) 'client_id': clientId,
       if (title != null) 'title': title,
+      if (category != null) 'category': category,
+      if (subcategory != null) 'subcategory': subcategory,
       if (status != null) 'status': status,
       if (designApproved != null) 'design_approved': designApproved,
       if (printStage != null) 'print_stage': printStage,
@@ -2244,6 +2329,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
     Value<String>? id,
     Value<String>? clientId,
     Value<String>? title,
+    Value<String>? category,
+    Value<String>? subcategory,
     Value<String>? status,
     Value<bool>? designApproved,
     Value<String>? printStage,
@@ -2269,6 +2356,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
       id: id ?? this.id,
       clientId: clientId ?? this.clientId,
       title: title ?? this.title,
+      category: category ?? this.category,
+      subcategory: subcategory ?? this.subcategory,
       status: status ?? this.status,
       designApproved: designApproved ?? this.designApproved,
       printStage: printStage ?? this.printStage,
@@ -2304,6 +2393,12 @@ class OrdersCompanion extends UpdateCompanion<Order> {
     }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (subcategory.present) {
+      map['subcategory'] = Variable<String>(subcategory.value);
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
@@ -2380,6 +2475,8 @@ class OrdersCompanion extends UpdateCompanion<Order> {
           ..write('id: $id, ')
           ..write('clientId: $clientId, ')
           ..write('title: $title, ')
+          ..write('category: $category, ')
+          ..write('subcategory: $subcategory, ')
           ..write('status: $status, ')
           ..write('designApproved: $designApproved, ')
           ..write('printStage: $printStage, ')
@@ -5519,6 +5616,457 @@ class WorkBreaksCompanion extends UpdateCompanion<WorkBreak> {
   }
 }
 
+class $DailyRemindersTable extends DailyReminders
+    with TableInfo<$DailyRemindersTable, DailyReminder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DailyRemindersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateKeyMeta = const VerificationMeta(
+    'dateKey',
+  );
+  @override
+  late final GeneratedColumn<String> dateKey = GeneratedColumn<String>(
+    'date_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isDoneMeta = const VerificationMeta('isDone');
+  @override
+  late final GeneratedColumn<bool> isDone = GeneratedColumn<bool>(
+    'is_done',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_done" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    dateKey,
+    title,
+    isDone,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'daily_reminders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DailyReminder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('date_key')) {
+      context.handle(
+        _dateKeyMeta,
+        dateKey.isAcceptableOrUnknown(data['date_key']!, _dateKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateKeyMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('is_done')) {
+      context.handle(
+        _isDoneMeta,
+        isDone.isAcceptableOrUnknown(data['is_done']!, _isDoneMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DailyReminder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DailyReminder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      dateKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date_key'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      isDone: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_done'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $DailyRemindersTable createAlias(String alias) {
+    return $DailyRemindersTable(attachedDatabase, alias);
+  }
+}
+
+class DailyReminder extends DataClass implements Insertable<DailyReminder> {
+  final String id;
+  final String dateKey;
+  final String title;
+  final bool isDone;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const DailyReminder({
+    required this.id,
+    required this.dateKey,
+    required this.title,
+    required this.isDone,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['date_key'] = Variable<String>(dateKey);
+    map['title'] = Variable<String>(title);
+    map['is_done'] = Variable<bool>(isDone);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  DailyRemindersCompanion toCompanion(bool nullToAbsent) {
+    return DailyRemindersCompanion(
+      id: Value(id),
+      dateKey: Value(dateKey),
+      title: Value(title),
+      isDone: Value(isDone),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory DailyReminder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DailyReminder(
+      id: serializer.fromJson<String>(json['id']),
+      dateKey: serializer.fromJson<String>(json['dateKey']),
+      title: serializer.fromJson<String>(json['title']),
+      isDone: serializer.fromJson<bool>(json['isDone']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'dateKey': serializer.toJson<String>(dateKey),
+      'title': serializer.toJson<String>(title),
+      'isDone': serializer.toJson<bool>(isDone),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  DailyReminder copyWith({
+    String? id,
+    String? dateKey,
+    String? title,
+    bool? isDone,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => DailyReminder(
+    id: id ?? this.id,
+    dateKey: dateKey ?? this.dateKey,
+    title: title ?? this.title,
+    isDone: isDone ?? this.isDone,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  DailyReminder copyWithCompanion(DailyRemindersCompanion data) {
+    return DailyReminder(
+      id: data.id.present ? data.id.value : this.id,
+      dateKey: data.dateKey.present ? data.dateKey.value : this.dateKey,
+      title: data.title.present ? data.title.value : this.title,
+      isDone: data.isDone.present ? data.isDone.value : this.isDone,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyReminder(')
+          ..write('id: $id, ')
+          ..write('dateKey: $dateKey, ')
+          ..write('title: $title, ')
+          ..write('isDone: $isDone, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, dateKey, title, isDone, createdAt, updatedAt, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DailyReminder &&
+          other.id == this.id &&
+          other.dateKey == this.dateKey &&
+          other.title == this.title &&
+          other.isDone == this.isDone &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class DailyRemindersCompanion extends UpdateCompanion<DailyReminder> {
+  final Value<String> id;
+  final Value<String> dateKey;
+  final Value<String> title;
+  final Value<bool> isDone;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const DailyRemindersCompanion({
+    this.id = const Value.absent(),
+    this.dateKey = const Value.absent(),
+    this.title = const Value.absent(),
+    this.isDone = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DailyRemindersCompanion.insert({
+    required String id,
+    required String dateKey,
+    required String title,
+    this.isDone = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       dateKey = Value(dateKey),
+       title = Value(title);
+  static Insertable<DailyReminder> custom({
+    Expression<String>? id,
+    Expression<String>? dateKey,
+    Expression<String>? title,
+    Expression<bool>? isDone,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (dateKey != null) 'date_key': dateKey,
+      if (title != null) 'title': title,
+      if (isDone != null) 'is_done': isDone,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DailyRemindersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? dateKey,
+    Value<String>? title,
+    Value<bool>? isDone,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return DailyRemindersCompanion(
+      id: id ?? this.id,
+      dateKey: dateKey ?? this.dateKey,
+      title: title ?? this.title,
+      isDone: isDone ?? this.isDone,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (dateKey.present) {
+      map['date_key'] = Variable<String>(dateKey.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (isDone.present) {
+      map['is_done'] = Variable<bool>(isDone.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DailyRemindersCompanion(')
+          ..write('id: $id, ')
+          ..write('dateKey: $dateKey, ')
+          ..write('title: $title, ')
+          ..write('isDone: $isDone, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncQueueTable extends SyncQueue
     with TableInfo<$SyncQueueTable, SyncQueueData> {
   @override
@@ -6041,6 +6589,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $WorkLogsTable workLogs = $WorkLogsTable(this);
   late final $WorkBreaksTable workBreaks = $WorkBreaksTable(this);
+  late final $DailyRemindersTable dailyReminders = $DailyRemindersTable(this);
   late final $SyncQueueTable syncQueue = $SyncQueueTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -6055,6 +6604,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     expenses,
     workLogs,
     workBreaks,
+    dailyReminders,
     syncQueue,
   ];
 }
@@ -6839,6 +7389,8 @@ typedef $$OrdersTableCreateCompanionBuilder = OrdersCompanion Function({
   required String id,
   required String clientId,
   required String title,
+  Value<String> category,
+  Value<String> subcategory,
   Value<String> status,
   Value<bool> designApproved,
   Value<String> printStage,
@@ -6864,6 +7416,8 @@ typedef $$OrdersTableUpdateCompanionBuilder = OrdersCompanion Function({
   Value<String> id,
   Value<String> clientId,
   Value<String> title,
+  Value<String> category,
+  Value<String> subcategory,
   Value<String> status,
   Value<bool> designApproved,
   Value<String> printStage,
@@ -6960,6 +7514,16 @@ class $$OrdersTableFilterComposer
 
   ColumnFilters<String> get title => $composableBuilder(
     column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subcategory => $composableBuilder(
+    column: $table.subcategory,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7151,6 +7715,16 @@ class $$OrdersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get subcategory => $composableBuilder(
+    column: $table.subcategory,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get status => $composableBuilder(
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
@@ -7284,6 +7858,14 @@ class $$OrdersTableAnnotationComposer
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get subcategory => $composableBuilder(
+    column: $table.subcategory,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
@@ -7473,6 +8055,8 @@ class $$OrdersTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> clientId = const Value.absent(),
                 Value<String> title = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<String> subcategory = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<bool> designApproved = const Value.absent(),
                 Value<String> printStage = const Value.absent(),
@@ -7497,6 +8081,8 @@ class $$OrdersTableTableManager
                 id: id,
                 clientId: clientId,
                 title: title,
+                category: category,
+                subcategory: subcategory,
                 status: status,
                 designApproved: designApproved,
                 printStage: printStage,
@@ -7523,6 +8109,8 @@ class $$OrdersTableTableManager
                 required String id,
                 required String clientId,
                 required String title,
+                Value<String> category = const Value.absent(),
+                Value<String> subcategory = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<bool> designApproved = const Value.absent(),
                 Value<String> printStage = const Value.absent(),
@@ -7547,6 +8135,8 @@ class $$OrdersTableTableManager
                 id: id,
                 clientId: clientId,
                 title: title,
+                category: category,
+                subcategory: subcategory,
                 status: status,
                 designApproved: designApproved,
                 printStage: printStage,
@@ -9735,6 +10325,255 @@ typedef $$WorkBreaksTableProcessedTableManager =
       WorkBreak,
       PrefetchHooks Function({bool workLogId})
     >;
+typedef $$DailyRemindersTableCreateCompanionBuilder =
+    DailyRemindersCompanion Function({
+      required String id,
+      required String dateKey,
+      required String title,
+      Value<bool> isDone,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$DailyRemindersTableUpdateCompanionBuilder =
+    DailyRemindersCompanion Function({
+      Value<String> id,
+      Value<String> dateKey,
+      Value<String> title,
+      Value<bool> isDone,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$DailyRemindersTableFilterComposer
+    extends Composer<_$AppDatabase, $DailyRemindersTable> {
+  $$DailyRemindersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDone => $composableBuilder(
+    column: $table.isDone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DailyRemindersTableOrderingComposer
+    extends Composer<_$AppDatabase, $DailyRemindersTable> {
+  $$DailyRemindersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dateKey => $composableBuilder(
+    column: $table.dateKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDone => $composableBuilder(
+    column: $table.isDone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DailyRemindersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DailyRemindersTable> {
+  $$DailyRemindersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get dateKey =>
+      $composableBuilder(column: $table.dateKey, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDone =>
+      $composableBuilder(column: $table.isDone, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$DailyRemindersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DailyRemindersTable,
+          DailyReminder,
+          $$DailyRemindersTableFilterComposer,
+          $$DailyRemindersTableOrderingComposer,
+          $$DailyRemindersTableAnnotationComposer,
+          $$DailyRemindersTableCreateCompanionBuilder,
+          $$DailyRemindersTableUpdateCompanionBuilder,
+          (
+            DailyReminder,
+            BaseReferences<_$AppDatabase, $DailyRemindersTable, DailyReminder>,
+          ),
+          DailyReminder,
+          PrefetchHooks Function()
+        > {
+  $$DailyRemindersTableTableManager(
+    _$AppDatabase db,
+    $DailyRemindersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DailyRemindersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DailyRemindersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DailyRemindersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> dateKey = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<bool> isDone = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyRemindersCompanion(
+                id: id,
+                dateKey: dateKey,
+                title: title,
+                isDone: isDone,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String dateKey,
+                required String title,
+                Value<bool> isDone = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DailyRemindersCompanion.insert(
+                id: id,
+                dateKey: dateKey,
+                title: title,
+                isDone: isDone,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DailyRemindersTable, DailyReminder>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $DailyRemindersTable,
+                    DailyReminder
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DailyRemindersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DailyRemindersTable,
+      DailyReminder,
+      $$DailyRemindersTableFilterComposer,
+      $$DailyRemindersTableOrderingComposer,
+      $$DailyRemindersTableAnnotationComposer,
+      $$DailyRemindersTableCreateCompanionBuilder,
+      $$DailyRemindersTableUpdateCompanionBuilder,
+      (
+        DailyReminder,
+        BaseReferences<_$AppDatabase, $DailyRemindersTable, DailyReminder>,
+      ),
+      DailyReminder,
+      PrefetchHooks Function()
+    >;
 typedef $$SyncQueueTableCreateCompanionBuilder = SyncQueueCompanion Function({
   Value<int> id,
   required String entityTable,
@@ -10019,6 +10858,8 @@ class $AppDatabaseManager {
       $$WorkLogsTableTableManager(_db, _db.workLogs);
   $$WorkBreaksTableTableManager get workBreaks =>
       $$WorkBreaksTableTableManager(_db, _db.workBreaks);
+  $$DailyRemindersTableTableManager get dailyReminders =>
+      $$DailyRemindersTableTableManager(_db, _db.dailyReminders);
   $$SyncQueueTableTableManager get syncQueue =>
       $$SyncQueueTableTableManager(_db, _db.syncQueue);
 }

@@ -1,6 +1,6 @@
 import '../../../../core/constants/app_enums.dart';
 
-/// Entidad de dominio para Pedidos (Cabecera).
+/// Entidad de dominio para Pedidos / Ventas (Cabecera).
 class OrderEntity {
   const OrderEntity({
     required this.id,
@@ -8,6 +8,8 @@ class OrderEntity {
     required this.clientName,
     required this.clientPhone,
     required this.title,
+    required this.category,
+    required this.subcategory,
     required this.status,
     required this.designApproved,
     required this.printStage,
@@ -33,6 +35,8 @@ class OrderEntity {
   final String clientName;
   final String clientPhone;
   final String title;
+  final String category;
+  final String subcategory;
   final OrderStatus status;
   final bool designApproved;
   final PrintStage printStage;

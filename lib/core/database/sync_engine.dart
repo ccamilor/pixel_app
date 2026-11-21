@@ -252,6 +252,8 @@ class SyncEngine {
             id: Value(r['id'] as String),
             clientId: Value(r['client_id'] as String),
             title: Value((r['title'] ?? '') as String),
+            category: Value((r['category'] ?? 'Impresión Digital') as String),
+            subcategory: Value((r['subcategory'] ?? '') as String),
             status: Value((r['status'] ?? 'pending') as String),
             designApproved: Value((r['design_approved'] ?? false) as bool),
             printStage: Value((r['print_stage'] ?? 'none') as String),
@@ -360,6 +362,21 @@ class SyncEngine {
             startTime: Value(_parseTs(r['start_time']) ?? DateTime.now().toUtc()),
             endTime: Value(_parseTs(r['end_time'])),
             notes: Value(r['notes'] as String?),
+            updatedAt: Value(_parseTs(r['updated_at']) ?? DateTime.now().toUtc()),
+            deletedAt: Value(_parseTs(r['deleted_at'])),
+          ),
+        );
+      }
+
+      final remindersRows = await remoteAdapter!.fetchTable('daily_reminders');
+      for (final r in remindersRows) {
+        await database.into(database.dailyReminders).insertOnConflictUpdate(
+          DailyRemindersCompanion(
+            id: Value(r['id'] as String),
+            dateKey: Value((r['date_key'] ?? '') as String),
+            title: Value((r['title'] ?? '') as String),
+            isDone: Value((r['is_done'] ?? false) as bool),
+            createdAt: Value(_parseTs(r['created_at']) ?? DateTime.now().toUtc()),
             updatedAt: Value(_parseTs(r['updated_at']) ?? DateTime.now().toUtc()),
             deletedAt: Value(_parseTs(r['deleted_at'])),
           ),
