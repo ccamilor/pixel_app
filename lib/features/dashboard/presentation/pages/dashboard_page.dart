@@ -8,7 +8,9 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_enums.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/database/sync_engine.dart';
+import '../../../../core/network/supabase_config.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../auth/presentation/widgets/cloud_sync_dialog.dart';
 import '../../../finance/data/repositories/finance_repository.dart';
 import '../../../finance/presentation/widgets/add_expense_dialog.dart';
 import '../../../inventory/data/repositories/inventory_repository.dart';
@@ -51,49 +53,80 @@ class DashboardPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Pixel App',
-              style: GoogleFonts.pacifico(
-                fontSize: 24,
-                fontWeight: FontWeight.w500,
-                color: AppColors.accentCyan,
-                letterSpacing: 0.5,
+            Flexible(
+              child: Text(
+                'Pixel App',
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.pacifico(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.accentCyan,
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
-            const SizedBox(width: 10),
-            const Text(
-              '• Dashboard',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary,
+            if (MediaQuery.sizeOf(context).width >= 480) ...[
+              const SizedBox(width: 10),
+              const Text(
+                '• Dashboard',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
+            ],
           ],
         ),
         actions: [
           pendingSyncAsync.when(
-            data: (count) => Padding(
-              padding: const EdgeInsets.only(right: 14),
-              child: Chip(
-                visualDensity: VisualDensity.compact,
-                backgroundColor: AppColors.surfaceElevated,
-                side: BorderSide(
-                  color: count == 0 ? AppColors.success : AppColors.accentCyan,
+            data: (count) {
+              final authUser =
+                  ref.watch(authStateProvider).asData?.value ??
+                  SupabaseConfig.clientOrNull?.auth.currentUser;
+              final isCloudActive =
+                  SupabaseConfig.isConfigured && authUser != null;
+
+              final label = !SupabaseConfig.isConfigured
+                  ? 'Modo Local'
+                  : !isCloudActive
+                      ? 'Conectar Nube'
+                      : count == 0
+                          ? 'Sincronizado'
+                          : '$count en cola';
+
+              final accentColor = !SupabaseConfig.isConfigured
+                  ? AppColors.textSecondary
+                  : !isCloudActive
+                      ? AppColors.warning
+                      : count == 0
+                          ? AppColors.success
+                          : AppColors.accentCyan;
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 14),
+                child: ActionChip(
+                  onPressed: () => showCloudSyncDialog(context, ref),
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: AppColors.surfaceElevated,
+                  side: BorderSide(color: accentColor),
+                  avatar: Icon(
+                    !isCloudActive
+                        ? Icons.cloud_off_outlined
+                        : count == 0
+                            ? Icons.cloud_done_outlined
+                            : Icons.sync_rounded,
+                    size: 16,
+                    color: accentColor,
+                  ),
+                  label: Text(
+                    label,
+                    style: const TextStyle(fontSize: 11),
+                  ),
                 ),
-                avatar: Icon(
-                  count == 0 ? Icons.cloud_done_outlined : Icons.sync_rounded,
-                  size: 16,
-                  color: count == 0 ? AppColors.success : AppColors.accentCyan,
-                ),
-                label: Text(
-                  count == 0 ? 'Sincronizado' : '$count en cola',
-                  style: const TextStyle(fontSize: 11),
-                ),
-              ),
-            ),
+              );
+            },
             loading: () => const SizedBox.shrink(),
             error: (_, _) => const SizedBox.shrink(),
           ),

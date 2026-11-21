@@ -21,7 +21,12 @@ class _FakeConnectivityService extends ConnectivityService {
 class _FakeRemoteSyncAdapter implements RemoteSyncAdapter {
   final List<Map<String, dynamic>> upserted = [];
   final List<String> deletedIds = [];
+  final Map<String, List<Map<String, dynamic>>> remoteTables = {};
   bool shouldFail = false;
+  bool authenticated = true;
+
+  @override
+  bool get isAuthenticated => authenticated;
 
   @override
   Future<void> upsert(String table, Map<String, dynamic> payload) async {
@@ -37,6 +42,12 @@ class _FakeRemoteSyncAdapter implements RemoteSyncAdapter {
   ) async {
     if (shouldFail) throw Exception('Simulated delete error');
     deletedIds.add('$table:$recordId');
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchTable(String table) async {
+    if (shouldFail) throw Exception('Simulated fetch error');
+    return remoteTables[table] ?? const [];
   }
 }
 
@@ -125,5 +136,49 @@ void main() {
     expect(snapshot.status, SyncStatus.offline);
     expect(snapshot.pendingCount, 1);
     expect(remote.upserted, isEmpty);
+  });
+
+  test('SyncEngine pullFromRemote descarga clientes y gastos de Supabase a Drift local', () async {
+    final connectivity = _FakeConnectivityService(online: true);
+    final remote = _FakeRemoteSyncAdapter();
+    remote.remoteTables['clients'] = [
+      {
+        'id': 'remote-client-1',
+        'name': 'Cliente iPad',
+        'phone': '3009998877',
+        'created_at': DateTime.utc(2026, 11, 20).toIso8601String(),
+        'updated_at': DateTime.utc(2026, 11, 20).toIso8601String(),
+      },
+    ];
+    remote.remoteTables['expenses'] = [
+      {
+        'id': 'remote-exp-1',
+        'amount': 22000,
+        'scope': 'personal',
+        'payment_method': 'nequi',
+        'category': 'Alimentación',
+        'subcategory': 'Almuerzo',
+        'description': 'Registrado por Telegram',
+        'date': DateTime.utc(2026, 11, 20).toIso8601String(),
+        'source': 'telegram',
+        'updated_at': DateTime.utc(2026, 11, 20).toIso8601String(),
+      },
+    ];
+
+    final engine = SyncEngine(
+      database: db,
+      connectivity: connectivity,
+      remoteAdapter: remote,
+    );
+
+    final snapshot = await engine.pullFromRemote();
+    final localClients = await db.select(db.clients).get();
+    final localExpenses = await db.select(db.expenses).get();
+
+    expect(snapshot.status, SyncStatus.idle);
+    expect(localClients.length, 1);
+    expect(localClients.first.name, 'Cliente iPad');
+    expect(localExpenses.length, 1);
+    expect(localExpenses.first.source, 'telegram');
   });
 }

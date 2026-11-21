@@ -200,3 +200,10 @@ create policy "auth_order_references_all"
 on storage.objects for all to authenticated
 using (bucket_id = 'order-references')
 with check (bucket_id = 'order-references');
+
+
+-- Permisos de esquema y tablas para el rol authenticated
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+alter default privileges in schema public grant select, insert, update, delete on tables to authenticated;
+notify pgrst, 'reload schema';
