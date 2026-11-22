@@ -3,5 +3,6 @@ abstract final class AppRoutes {
   static const String dashboard = '/dashboard';
   static const String orders = '/orders';
   static const String finance = '/finance';
+  static const String stats = '/stats';
   static const String clientsInventory = '/clients-inventory';
 }

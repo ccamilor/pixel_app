@@ -35,6 +35,11 @@ const List<_NavDestination> _destinations = [
     selectedIcon: Icons.account_balance_wallet,
   ),
   _NavDestination(
+    label: 'Estadísticas',
+    icon: Icons.bar_chart_outlined,
+    selectedIcon: Icons.bar_chart_rounded,
+  ),
+  _NavDestination(
     label: 'Clientes',
     icon: Icons.inventory_2_outlined,
     selectedIcon: Icons.inventory_2,

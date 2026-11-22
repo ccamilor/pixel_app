@@ -25,6 +25,7 @@ class WeatherInfo {
 /// Partido / resultado deportivo de América de Cali o Ligas Europeas.
 class MatchSummary {
   const MatchSummary({
+    required this.id,
     required this.league,
     required this.homeTeam,
     required this.awayTeam,
@@ -36,6 +37,7 @@ class MatchSummary {
     this.kickoffTime24h,
   });
 
+  final String id;
   final String league;
   final String homeTeam;
   final String awayTeam;
@@ -60,6 +62,23 @@ class LiveWidgetsService {
   static const _prefCityKey = 'pixel_weather_city';
   static const _prefLatKey = 'pixel_weather_lat';
   static const _prefLonKey = 'pixel_weather_lon';
+  static const _prefPinnedMatchKey = 'pixel_pinned_match_id';
+
+  /// Obtiene el ID del partido fijado como principal por el usuario (o null).
+  static Future<String?> getPinnedMatchId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_prefPinnedMatchKey);
+  }
+
+  /// Fija o quita un partido como principal para la tarjeta de la barra lateral.
+  static Future<void> setPinnedMatchId(String? matchId) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (matchId == null || matchId.isEmpty) {
+      await prefs.remove(_prefPinnedMatchKey);
+    } else {
+      await prefs.setString(_prefPinnedMatchKey, matchId);
+    }
+  }
 
   /// Guarda una ciudad elegida manualmente por el usuario (buscada con Open-Meteo Geocoding).
   static Future<bool> setManualCity(String query) async {
@@ -266,7 +285,10 @@ class LiveWidgetsService {
                 combinedLower.contains('america de cali') ||
                 (ep.slug == 'col.1' && combinedLower.contains('america'));
 
+            final eventId =
+                (event['id'] ?? '${ep.slug}_${homeName}_$awayName').toString();
             final match = MatchSummary(
+              id: eventId,
               league: ep.league,
               homeTeam: homeName,
               awayTeam: awayName,
@@ -314,4 +336,8 @@ final weatherInfoProvider = FutureProvider<WeatherInfo>(
 
 final sportsFeedProvider = FutureProvider<List<MatchSummary>>(
   (_) => LiveWidgetsService.fetchSportsFeed(),
+);
+
+final pinnedMatchIdProvider = FutureProvider<String?>(
+  (_) => LiveWidgetsService.getPinnedMatchId(),
 );

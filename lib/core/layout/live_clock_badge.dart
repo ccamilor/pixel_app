@@ -79,6 +79,7 @@ class _LiveClockBadgeState extends ConsumerState<LiveClockBadge> {
     final dateStr = DateFormat('dd/MM/yyyy').format(_now);
     final weatherAsync = ref.watch(weatherInfoProvider);
     final sportsAsync = ref.watch(sportsFeedProvider);
+    final pinnedMatchId = ref.watch(pinnedMatchIdProvider).asData?.value;
     final remindersAsync = ref.watch(todayRemindersProvider);
     final reminders = remindersAsync.asData?.value ?? const [];
     final pendingReminders = reminders.where((r) => !r.isDone).length;
@@ -381,7 +382,13 @@ class _LiveClockBadgeState extends ConsumerState<LiveClockBadge> {
                       );
                     }
 
-                    final top = matches.first;
+                    final top = pinnedMatchId != null
+                        ? matches.firstWhere(
+                            (m) => m.id == pinnedMatchId,
+                            orElse: () => matches.first,
+                          )
+                        : matches.first;
+                    final isPinned = pinnedMatchId == top.id;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -389,11 +396,15 @@ class _LiveClockBadgeState extends ConsumerState<LiveClockBadge> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.sports_soccer_rounded,
+                              isPinned
+                                  ? Icons.star_rounded
+                                  : Icons.sports_soccer_rounded,
                               size: 13,
-                              color: top.isAmericaDeCali
-                                  ? AppColors.error
-                                  : AppColors.accentCyan,
+                              color: isPinned
+                                  ? AppColors.warning
+                                  : top.isAmericaDeCali
+                                      ? AppColors.error
+                                      : AppColors.accentCyan,
                             ),
                             const SizedBox(width: 5),
                             Flexible(
@@ -677,6 +688,7 @@ class _LiveInfoDialogState extends ConsumerState<_LiveInfoDialog> {
   Widget build(BuildContext context) {
     final weatherAsync = ref.watch(weatherInfoProvider);
     final sportsAsync = ref.watch(sportsFeedProvider);
+    final pinnedMatchId = ref.watch(pinnedMatchIdProvider).asData?.value;
     final remindersAsync = ref.watch(todayRemindersProvider);
 
     final title = switch (_tab) {
@@ -964,19 +976,49 @@ class _LiveInfoDialogState extends ConsumerState<_LiveInfoDialog> {
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (_, i) {
                         final m = matches[i];
+                        final isPinned = pinnedMatchId == m.id;
                         return Card(
                           color: AppColors.background,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
-                              color: m.isAmericaDeCali
-                                  ? AppColors.error
-                                  : AppColors.border,
-                              width: m.isAmericaDeCali ? 1.5 : 1,
+                              color: isPinned
+                                  ? AppColors.warning
+                                  : m.isAmericaDeCali
+                                      ? AppColors.error
+                                      : AppColors.border,
+                              width: isPinned || m.isAmericaDeCali ? 1.5 : 1,
                             ),
                           ),
                           child: ListTile(
                             dense: true,
+                            onTap: () async {
+                              await LiveWidgetsService.setPinnedMatchId(
+                                isPinned ? null : m.id,
+                              );
+                              ref.invalidate(pinnedMatchIdProvider);
+                            },
+                            leading: IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: isPinned
+                                  ? 'Quitar como partido principal'
+                                  : 'Fijar como partido principal',
+                              icon: Icon(
+                                isPinned
+                                    ? Icons.star_rounded
+                                    : Icons.star_outline_rounded,
+                                size: 20,
+                                color: isPinned
+                                    ? AppColors.warning
+                                    : AppColors.textMuted,
+                              ),
+                              onPressed: () async {
+                                await LiveWidgetsService.setPinnedMatchId(
+                                  isPinned ? null : m.id,
+                                );
+                                ref.invalidate(pinnedMatchIdProvider);
+                              },
+                            ),
                             title: Text(
                               m.headline,
                               style: const TextStyle(
@@ -985,12 +1027,14 @@ class _LiveInfoDialogState extends ConsumerState<_LiveInfoDialog> {
                               ),
                             ),
                             subtitle: Text(
-                              '${m.isAmericaDeCali ? "🔴 AMÉRICA DE CALI • " : ""}${m.league}',
+                              '${isPinned ? "⭐ PRINCIPAL • " : ""}${m.isAmericaDeCali ? "🔴 AMÉRICA DE CALI • " : ""}${m.league}',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: m.isAmericaDeCali
-                                    ? AppColors.error
-                                    : AppColors.textSecondary,
+                                color: isPinned
+                                    ? AppColors.warning
+                                    : m.isAmericaDeCali
+                                        ? AppColors.error
+                                        : AppColors.textSecondary,
                               ),
                             ),
                             trailing: Container(

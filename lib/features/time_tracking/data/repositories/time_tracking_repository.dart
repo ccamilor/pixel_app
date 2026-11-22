@@ -235,6 +235,85 @@ class TimeTrackingRepository {
     _syncEngine.syncPendingChanges();
   }
 
+  /// Permite crear o editar manualmente una jornada laboral (apertura, cierre, descansos, notas y horas netas).
+  Future<void> saveWorkLogManual({
+    String? id,
+    required DateTime date,
+    required DateTime openTime,
+    DateTime? closeTime,
+    required int totalBreakMinutes,
+    int? overrideWorkedMinutes,
+    String? notes,
+  }) async {
+    final key = dateKeyOf(date);
+    final nowUtc = DateTime.now().toUtc();
+    final openUtc = openTime.toUtc();
+    final closeUtc = closeTime?.toUtc();
+
+    final existingByDate = await (_db.select(_db.workLogs)
+          ..where((t) => t.dateKey.equals(key)))
+        .getSingleOrNull();
+    final recordId = id ?? existingByDate?.id ?? _uuid.v4();
+
+    int computedWorked;
+    if (overrideWorkedMinutes != null) {
+      computedWorked = overrideWorkedMinutes.clamp(0, 24 * 60);
+    } else if (closeUtc != null) {
+      final gross = closeUtc.difference(openUtc).inMinutes;
+      computedWorked = (gross - totalBreakMinutes).clamp(0, 24 * 60);
+    } else {
+      computedWorked = 0;
+    }
+
+    await _db.into(_db.workLogs).insertOnConflictUpdate(
+      WorkLogsCompanion(
+        id: Value(recordId),
+        dateKey: Value(key),
+        openTime: Value(openUtc),
+        closeTime: Value(closeUtc),
+        totalWorkedMinutes: Value(computedWorked),
+        totalBreakMinutes: Value(totalBreakMinutes.clamp(0, 24 * 60)),
+        notes: Value(notes?.trim().isEmpty ?? true ? null : notes?.trim()),
+        updatedAt: Value(nowUtc),
+        deletedAt: const Value(null),
+      ),
+    );
+
+    await _db.enqueueSync(
+      entityTable: 'work_logs',
+      recordId: recordId,
+      operation: 'upsert',
+      payload: {
+        'id': recordId,
+        'date': key,
+        'open_time': openUtc.toIso8601String(),
+        'close_time': closeUtc?.toIso8601String(),
+        'total_worked_minutes': computedWorked,
+        'total_break_minutes': totalBreakMinutes.clamp(0, 24 * 60),
+        'notes': notes?.trim().isEmpty ?? true ? null : notes?.trim(),
+        'updated_at': nowUtc.toIso8601String(),
+        'deleted_at': null,
+      },
+    );
+
+    _syncEngine.syncPendingChanges();
+  }
+
+  Future<void> deleteWorkLog(String workLogId) async {
+    final nowUtc = DateTime.now().toUtc();
+    await (_db.update(_db.workLogs)..where((t) => t.id.equals(workLogId)))
+        .write(
+          WorkLogsCompanion(deletedAt: Value(nowUtc), updatedAt: Value(nowUtc)),
+        );
+    await _db.enqueueSync(
+      entityTable: 'work_logs',
+      recordId: workLogId,
+      operation: 'delete',
+      payload: {'deleted_at': nowUtc.toIso8601String()},
+    );
+    _syncEngine.syncPendingChanges();
+  }
+
   Future<List<WorkBreakEntity>> _getBreaksForLog(String workLogId) async {
     final rows = await (_db.select(_db.workBreaks)
           ..where((t) => t.workLogId.equals(workLogId) & t.deletedAt.isNull()))
